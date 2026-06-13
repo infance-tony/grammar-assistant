@@ -1,0 +1,67 @@
+# ============================
+# Grammar Assistant .gitignore
+# ============================
+
+# ── Agents / Config ───────────────────────────────────────
+.agents/
+.agents.md
+.gemini/
+
+# ── Python ────────────────────────────────────────────────
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ── PyInstaller ───────────────────────────────────────────
+backend/dist/
+backend/build/
+*.spec
+
+# ── Flutter / Dart ────────────────────────────────────────
+frontend/.dart_tool/
+frontend/.packages
+frontend/.pub-cache/
+frontend/.pub/
+frontend/build/
+frontend/.flutter-plugins
+frontend/.flutter-plugins-dependencies
+frontend/.metadata
+
+# ── AI Model (too large for git) ──────────────────────────
+*.gguf
+backend/models/
+
+# ── IDE ───────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# ── OS ────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+Desktop.ini
+ehthumbs.db
+
+# ── Installer Output / Binaries ───────────────────────────
+dist/
+*.exe
+
+# ── Misc ──────────────────────────────────────────────────
+*.log
+*.tmp
+*.bak
+test_ui.html

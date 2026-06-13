@@ -1,0 +1,46 @@
+name: grammar_assistant
+description: A Grammarly-like offline AI writing assistant for Windows Desktop.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+  flutter: '>=3.19.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # HTTP client for backend calls
+  http: ^1.2.1
+
+  # Local storage (sqflite_common_ffi required for Windows Desktop)
+  sqflite_common_ffi: ^2.3.3
+  path: ^1.9.0
+  shared_preferences: ^2.2.3
+
+  # Window management
+  window_manager: ^0.3.9
+
+  # System tray
+  system_tray: ^2.0.3
+
+  # Global hotkeys
+  hotkey_manager: ^0.2.3
+
+  # Animations
+  flutter_animate: ^4.5.0
+
+  # Google Fonts
+  google_fonts: ^6.2.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/icons/
