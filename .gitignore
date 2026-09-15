@@ -2,7 +2,8 @@
 # Grammar Assistant .gitignore
 # ============================
 
-# ── Agents / Config ───────────────────────────────────────
+# ── Claude / AI assistants ────────────────────────────────
+.claude/
 .agents/
 .agents.md
 .gemini/
@@ -14,17 +15,17 @@ __pycache__/
 *$py.class
 *.so
 *.egg-info/
-dist/
-build/
 *.egg
 .Python
 pip-log.txt
 pip-delete-this-directory.txt
+.env
+*.env
 
-# ── PyInstaller ───────────────────────────────────────────
+# ── PyInstaller build output ──────────────────────────────
 backend/dist/
 backend/build/
-*.spec
+# NOTE: grammar_backend.spec IS committed (needed to rebuild)
 
 # ── Flutter / Dart ────────────────────────────────────────
 frontend/.dart_tool/
@@ -36,9 +37,15 @@ frontend/.flutter-plugins
 frontend/.flutter-plugins-dependencies
 frontend/.metadata
 
-# ── AI Model (too large for git) ──────────────────────────
+# ── AI Models (too large for git — download separately) ───
 *.gguf
-backend/models/
+backend/models/*.gguf
+
+# ── Installer output & compiled binaries ──────────────────
+dist/
+*.exe
+*.msi
+*.tmp
 
 # ── IDE ───────────────────────────────────────────────────
 .idea/
@@ -56,12 +63,7 @@ Thumbs.db
 Desktop.ini
 ehthumbs.db
 
-# ── Installer Output / Binaries ───────────────────────────
-dist/
-*.exe
-
-# ── Misc ──────────────────────────────────────────────────
+# ── Logs ──────────────────────────────────────────────────
 *.log
-*.tmp
 *.bak
 test_ui.html

@@ -22,7 +22,16 @@ echo.
 REM ── Step 2: Flutter Release Build ────────────────────
 echo [2/3] Building Flutter Windows release...
 cd ..\frontend
-call flutter build windows --release
+
+REM Resolve Flutter executable (puro first, then PATH)
+set FLUTTER=%USERPROFILE%\.puro\envs\stable\flutter\bin\flutter.bat
+if not exist "%FLUTTER%" (
+    for /f "delims=" %%i in ('where flutter 2^>nul') do (set FLUTTER=%%i & goto :found_flutter_build)
+    echo ERROR: flutter not found. Install from https://flutter.dev or https://puro.dev
+    pause & exit /b 1
+)
+:found_flutter_build
+call "%FLUTTER%" build windows --release
 if %ERRORLEVEL% neq 0 (
     echo ERROR: Flutter build failed!
     pause
@@ -56,7 +65,7 @@ if %ERRORLEVEL% neq 0 (
 echo.
 echo ============================================
 echo   BUILD COMPLETE!
-echo   Installer: dist\GrammarAssistant_Setup_v1.0.0.exe
+echo   Installer: dist\GrammarAssistant_Setup_v1.1.0.exe
 echo ============================================
 echo.
 cd ..\..

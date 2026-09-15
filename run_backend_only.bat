@@ -14,7 +14,9 @@ if not exist "venv\Scripts\python.exe" (
     python -m venv venv
     echo [SETUP] Installing dependencies...
     venv\Scripts\pip.exe install --upgrade pip --quiet
-    venv\Scripts\pip.exe install fastapi uvicorn llama-cpp-python --quiet
+    venv\Scripts\pip.exe install fastapi==0.111.0 "uvicorn[standard]==0.29.0" pydantic==2.7.1 python-multipart==0.0.9 --quiet
+    echo [SETUP] Installing llama-cpp-python (pre-built CPU wheel, no compiler needed)...
+    venv\Scripts\pip.exe install llama-cpp-python==0.3.4 --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu --quiet
     echo [SETUP] Done!
     echo.
 )

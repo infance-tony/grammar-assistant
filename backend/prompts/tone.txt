@@ -1,0 +1,28 @@
+Detect the tone of the following text. Reply with exactly one word from this list: formal, informal, professional, casual, negative, positive, neutral.
+
+Examples:
+Input: Hey! wanna grab lunch sometime?
+Tone: casual
+
+Input: We regret to inform you that your application was unsuccessful.
+Tone: formal
+
+Input: This product is absolutely terrible and broke after one day.
+Tone: negative
+
+Input: The quarterly results exceeded our projections by 12%.
+Tone: professional
+
+Input: I just wanted to say thank you so much, it really made my day!
+Tone: positive
+
+Input: The package was delivered on Tuesday.
+Tone: neutral
+
+Input: lol that was so funny omg
+Tone: informal
+
+Now detect the tone. Reply with one word only.
+
+Input: {text}
+Tone:

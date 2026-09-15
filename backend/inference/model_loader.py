@@ -1,6 +1,7 @@
 """
 Singleton model loader.
 Loads the GGUF model once at startup; subsequent calls return the cached instance.
+Supports runtime model switching via switch_model().
 """
 
 import os
@@ -11,48 +12,56 @@ from pathlib import Path
 
 logger = logging.getLogger("grammar_assistant.model_loader")
 
-# ── Locate the model file ──────────────────────────────────────────────────
-_MODEL_NAME = "qwen.gguf"
+# Per-model metadata: stop tokens, context window, and special flags
+# no_think=True → Qwen3 thinking mode disabled (prepends /no_think to user message)
+_MODEL_REGISTRY: dict[str, dict] = {
+    "phi4mini.gguf":    {"stop": ["<|im_end|>", "<|end|>", "<|endoftext|>"], "n_ctx": 2048, "no_think": False},
+    "qwen15b.gguf":     {"stop": ["<|im_end|>", "<|endoftext|>"],            "n_ctx": 2048, "no_think": False},
+    "qwen3-1.7b.gguf":  {"stop": ["<|im_end|>", "<|endoftext|>"],            "n_ctx": 2048, "no_think": True},
+    "qwen.gguf":        {"stop": ["<|im_end|>", "<|endoftext|>"],            "n_ctx": 1024, "no_think": False},
+}
+_DEFAULT_STOP = ["<|im_end|>", "<|endoftext|>"]
+_DEFAULT_CTX = 2048
+
 
 def _find_model_path() -> Path:
     """Find the GGUF model file.
-    Searches multiple directories to support dev, PyInstaller, and embedded Python layouts.
+
+    Priority: MODEL_PATH env var → phi4mini.gguf → qwen15b.gguf → qwen.gguf
+    Searches dev, PyInstaller, and installed layouts.
     """
-    # 1. Explicit override via env var
     env_path = os.environ.get("MODEL_PATH")
     if env_path:
         return Path(env_path)
 
-    # Build list of candidate base directories
-    candidates = []
+    candidates: list[Path] = []
 
-    if getattr(sys, 'frozen', False):
-        # PyInstaller bundle
+    if getattr(sys, "frozen", False):
         exe_dir = Path(sys.executable).parent
-        candidates.append(exe_dir)
-        candidates.append(exe_dir.parent)
+        candidates += [exe_dir, exe_dir.parent]
     else:
-        # Normal Python — check relative to source file (backend/inference/ → backend/)
         src_dir = Path(__file__).parent.parent
-        candidates.append(src_dir)
-        candidates.append(src_dir.parent)  # installed: grammar_backend_python/../
+        candidates += [src_dir, src_dir.parent]
 
-    # 2. Search candidates
-    for base in candidates:
-        p = base / "models" / _MODEL_NAME
-        if p.exists():
-            return p
+    preferred = list(_MODEL_REGISTRY.keys())
 
-    # 3. Fallback — return first candidate (will raise FileNotFoundError later)
-    return candidates[0] / "models" / _MODEL_NAME
+    for name in preferred:
+        for base in candidates:
+            p = base / "models" / name
+            if p.exists():
+                return p
 
-_DEFAULT_MODEL_PATH = _find_model_path()
+    # Fallback — return expected path for the best model so error message is clear
+    return candidates[0] / "models" / "phi4mini.gguf"
 
 
 class ModelLoader:
     _instance = None
     _lock = threading.Lock()
     _ready = False
+    _active_model_name: str = ""
+    _stop_tokens: list[str] = _DEFAULT_STOP
+    _no_think: bool = False
 
     @classmethod
     def get_instance(cls):
@@ -60,7 +69,7 @@ class ModelLoader:
         if cls._instance is None:
             with cls._lock:
                 if cls._instance is None:
-                    cls._instance = cls._load()
+                    cls._instance = cls._load(_find_model_path())
                     cls._ready = True
         return cls._instance
 
@@ -69,33 +78,72 @@ class ModelLoader:
         return cls._ready
 
     @classmethod
-    def _load(cls):
-        from llama_cpp import Llama  # imported here so startup is fast if model missing
+    def get_active_model_name(cls) -> str:
+        return cls._active_model_name
 
-        model_path = _DEFAULT_MODEL_PATH
+    @classmethod
+    def get_stop_tokens(cls) -> list[str]:
+        return cls._stop_tokens
+
+    @classmethod
+    def is_no_think(cls) -> bool:
+        """True when the loaded model needs /no_think to suppress chain-of-thought."""
+        return cls._no_think
+
+    @classmethod
+    def switch_model(cls, filename: str) -> None:
+        """Reload with a different GGUF file from the models/ directory."""
+        # Resolve models directory from the current active path or standard location
+        current_path = _find_model_path()
+        models_dir = current_path.parent
+        new_path = models_dir / filename
+
+        if not new_path.exists():
+            raise FileNotFoundError(
+                f"Model file not found: {new_path}\n"
+                f"Run: python download_model.py {filename.replace('.gguf', '')}"
+            )
+
+        with cls._lock:
+            cls._instance = None
+            cls._ready = False
+            os.environ["MODEL_PATH"] = str(new_path)
+            cls._instance = cls._load(new_path)
+            cls._ready = True
+
+    @classmethod
+    def _load(cls, model_path: Path):
+        from llama_cpp import Llama
 
         if not model_path.exists():
             raise FileNotFoundError(
                 f"Model file not found at: {model_path}\n"
-                "Download Qwen2.5-0.5B-Instruct Q4_K_M GGUF and place it at "
-                "backend/models/qwen.gguf"
+                "Run: python download_model.py phi4mini\n"
+                "or:  python download_model.py qwen15b"
             )
 
         import multiprocessing
         cpu_count = multiprocessing.cpu_count()
-        # Use all physical cores for max speed
         threads = int(os.environ.get("MODEL_THREADS", max(cpu_count, 4)))
 
-        logger.info("Loading model from %s … (%d threads)", model_path, threads)
+        name = model_path.name
+        meta = _MODEL_REGISTRY.get(name, {})
+        n_ctx = int(os.environ.get("MODEL_CTX", meta.get("n_ctx", _DEFAULT_CTX)))
+
+        logger.info("Loading model: %s (%d threads, n_ctx=%d)", name, threads, n_ctx)
 
         model = Llama(
             model_path=str(model_path),
-            n_ctx=int(os.environ.get("MODEL_CTX", 1024)),    # 1024 is enough; saves RAM
+            n_ctx=n_ctx,
             n_threads=threads,
-            n_batch=int(os.environ.get("MODEL_BATCH", 512)), # larger batch = faster prompt eval
-            n_gpu_layers=int(os.environ.get("MODEL_GPU_LAYERS", 0)),  # CPU-only by default
+            n_batch=int(os.environ.get("MODEL_BATCH", 512)),
+            n_gpu_layers=int(os.environ.get("MODEL_GPU_LAYERS", 0)),
             verbose=False,
         )
 
-        logger.info("Model loaded successfully ✓ (%d threads, n_ctx=1024)", threads)
+        cls._active_model_name = name
+        cls._stop_tokens = meta.get("stop", _DEFAULT_STOP)
+        cls._no_think = bool(meta.get("no_think", False))
+
+        logger.info("Model loaded: %s ✓ (no_think=%s)", name, cls._no_think)
         return model

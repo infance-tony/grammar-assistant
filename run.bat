@@ -24,15 +24,16 @@ if errorlevel 1 goto wait_loop
 
 echo Backend ready!
 
-REM Launch Flutter app
+REM Launch Flutter app — try puro-managed Flutter first, then fall back to PATH
 set FLUTTER=%USERPROFILE%\.puro\envs\stable\flutter\bin\flutter.bat
 if not exist "%FLUTTER%" (
-    echo Flutter not found at %FLUTTER%
-    echo Please run: flutter run -d windows
-    echo from the frontend\ directory manually.
+    for /f "delims=" %%i in ('where flutter 2^>nul') do (set FLUTTER=%%i & goto :found_flutter)
+    echo ERROR: flutter not found in puro or PATH.
+    echo Install Flutter: https://flutter.dev  or puro: https://puro.dev
     pause
     exit /b 1
 )
+:found_flutter
 
 echo Launching app window...
 cd /d %~dp0frontend

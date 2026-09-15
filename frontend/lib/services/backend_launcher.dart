@@ -79,9 +79,9 @@ class BackendLauncher {
   static String _resolveBackendPath() {
     final appDir = File(Platform.resolvedExecutable).parent.path;
 
-    // Release mode: look for embedded Python next to the Flutter exe
-    final embeddedPython = '$appDir\\grammar_backend_python\\python.exe';
-    if (File(embeddedPython).existsSync()) return embeddedPython;
+    // Release mode: look for PyInstaller-bundled exe next to the Flutter exe
+    final embeddedExe = '$appDir\\grammar_backend_python\\grammar_backend.exe';
+    if (File(embeddedExe).existsSync()) return embeddedExe;
 
     // Dev mode: run python directly
     return 'python';
@@ -89,9 +89,9 @@ class BackendLauncher {
 
   /// Returns arguments for the backend process.
   static List<String> _resolveArgs(String exe) {
-    if (exe.contains('grammar_backend_python')) {
-      // Installed mode: run main.py from the embedded python directory
-      return ['main.py'];
+    if (exe.endsWith('grammar_backend.exe')) {
+      // Installed mode: PyInstaller exe is self-contained, no args needed
+      return [];
     }
     // Dev mode: pass the backend main.py path
     final repoRoot = Directory.current.path
@@ -102,8 +102,8 @@ class BackendLauncher {
 
   /// Returns the working directory for the backend process.
   static String? _resolveWorkingDir(String exe) {
-    if (exe.contains('grammar_backend_python')) {
-      // Installed mode: working dir is the embedded python directory
+    if (exe.endsWith('grammar_backend.exe')) {
+      // Installed mode: working dir must be the exe's directory so it finds models/
       return File(exe).parent.path;
     }
     // Dev mode: use current dir

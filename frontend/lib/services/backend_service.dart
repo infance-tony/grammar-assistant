@@ -29,12 +29,6 @@ class BackendService {
   }
 
   /// Sends text to the backend for processing.
-  ///
-  /// [action] — one of: grammar, rewrite_casual, rewrite_clear,
-  ///   rewrite_concise, professional, expand, shorten
-  /// [text]   — the input text to process
-  ///
-  /// Returns an [ActionResult] or throws a [BackendException].
   Future<ActionResult> processText({
     required String action,
     required String text,
@@ -63,6 +57,42 @@ class BackendService {
       );
     } on http.ClientException catch (e) {
       throw BackendException('Network error: ${e.message}');
+    }
+  }
+
+  /// Returns the list of available GGUF model filenames and the active model name.
+  Future<Map<String, dynamic>> getModels() async {
+    try {
+      final response = await http
+          .get(Uri.parse('$_baseUrl/api/models'))
+          .timeout(const Duration(seconds: 10));
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      }
+      throw BackendException('Failed to list models: ${response.statusCode}');
+    } on SocketException {
+      throw BackendException('Cannot connect to the AI service.');
+    }
+  }
+
+  /// Switches the active model. Model reload can take 10–30 seconds.
+  Future<void> switchModel(String filename) async {
+    try {
+      final response = await http
+          .post(
+            Uri.parse('$_baseUrl/api/switch_model'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'filename': filename}),
+          )
+          .timeout(const Duration(seconds: 90));
+      if (response.statusCode != 200) {
+        final error = jsonDecode(response.body);
+        throw BackendException(
+          'Model switch failed: ${error['detail'] ?? 'Unknown error'}',
+        );
+      }
+    } on SocketException {
+      throw BackendException('Cannot connect to the AI service.');
     }
   }
 }
